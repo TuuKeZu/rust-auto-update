@@ -21,6 +21,7 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
   pre-release:
+    permissions: write-all
     
     runs-on: "ubuntu-latest"
 
