@@ -14,7 +14,7 @@ pub struct Data {
 }
 
 impl Data {
-    pub fn as_json(&self) -> String {
+    pub fn as_toml(&self) -> String {
         toml::to_string(self).unwrap()
     }
 }
@@ -37,7 +37,7 @@ impl Default for Version {
 pub fn get_version() -> Result<Version, Error> {
     let file_name = "Version.toml";
 
-    file_exists(file_name, Data {version: Version::default() }.as_json())?;
+    file_exists(file_name, Data {version: Version::default() }.as_toml())?;
 
     let contents = fs::read_to_string(file_name)?;
 
@@ -48,7 +48,7 @@ pub fn get_version() -> Result<Version, Error> {
 
 pub fn set_version(new_raw: String) -> Result<(), Error> {
     let file_name = "Version.toml";
-    
+
     let file = OpenOptions::new().read(true).write(true).create(true).open(file_name)?;
     let mut writer = BufWriter::new(file);
 
