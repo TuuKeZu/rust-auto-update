@@ -2,14 +2,13 @@ use std::env;
 
 pub enum ProcessType {
     Windows,
-    Unix,
+    Linux,
     Unsupported
 }
 
 pub fn get_os() -> ProcessType {
     match env::consts::OS {
-        "linux" => ProcessType::Unix,
-        "macos" => ProcessType::Unix,
+        "linux" => ProcessType::Linux,
         "windows" => ProcessType::Windows,
         _ => ProcessType::Unsupported
     }
