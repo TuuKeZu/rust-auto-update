@@ -1,12 +1,13 @@
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+use create_process_w::Command;
 
 fn main() {
-    println!("Hello.rs v{VERSION}");
-    println!("-------------------");
-    println!("> Hello, world!");
+    let child = Command::new("version-cache/data-analysis.exe")
+    .status()
+    .expect("failed to start process");
 
-
-    // terminal shouldn't terminate on close
-    println!("Press any key to continue...");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
+    if child.success() {
+        println!("Success!");
+    } else {
+        println!("Process exited with status {}", child.code());
+    }
 }
