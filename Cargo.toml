@@ -1,5 +1,5 @@
 [package]
-name = "rust-launcher"
+name = "rustdate"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,6 +17,5 @@ toml = "0.5.2"
 serde = "1.0.136"
 serde_derive = "1.0.136"
 zip = "0.6.3"
-const_format = "0.2.30"
 online = { version = "4.0.0", features = ["tokio"] }
 anyhow = "1.0.68"

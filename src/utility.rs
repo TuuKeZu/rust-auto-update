@@ -4,9 +4,16 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Write, BufReader, BufWriter};
 use std::path::Path;
 use toml;
+use std::env;
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+pub enum OsType {
+    Windows,
+    Linux,
+    Unsupported
+}
 
 #[derive(Deserialize, Serialize)]
-
 pub struct Data {
     pub version: Version
 }
@@ -32,13 +39,20 @@ impl Default for Version {
     }
 }
 
+pub fn get_os() -> OsType {
+    match env::consts::OS {
+        "linux" => OsType::Linux,
+        "windows" => OsType::Windows,
+        _ => OsType::Unsupported
+    }
+}
+
 pub fn get_version() -> Result<Version, std::io::Error> {
     let file_name = "Version.toml";
 
     file_exists(file_name, Data {version: Version::default() }.as_toml())?;
 
     let contents = fs::read_to_string(file_name)?;
-
     let data: Data = toml::from_str(&contents)?;
 
     Ok(data.version)
