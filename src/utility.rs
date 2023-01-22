@@ -5,8 +5,6 @@ use std::io::{Write, BufReader, BufWriter};
 use std::path::Path;
 use toml;
 
-type Error = Box<dyn std::error::Error>;
-
 #[derive(Deserialize, Serialize)]
 
 pub struct Data {
@@ -21,20 +19,20 @@ impl Data {
 
 #[derive(Deserialize, Serialize)]
 pub struct Version {
-    pub binary_id: usize,
-    pub version_label: String
+    pub id: usize,
+    pub label: String
 }
 
 impl Default for Version {
     fn default() -> Self {
         Self {
-            binary_id: 0,
-            version_label: String::from("unset")
+            id: 0,
+            label: String::from("unset")
         }
     }
 }
 
-pub fn get_version() -> Result<Version, Error> {
+pub fn get_version() -> Result<Version, std::io::Error> {
     let file_name = "Version.toml";
 
     file_exists(file_name, Data {version: Version::default() }.as_toml())?;
@@ -46,7 +44,7 @@ pub fn get_version() -> Result<Version, Error> {
     Ok(data.version)
 }
 
-pub fn set_version(new_raw: String) -> Result<(), Error> {
+pub fn set_version(new_raw: String) -> Result<(), std::io::Error> {
     let file_name = "Version.toml";
 
     let file = OpenOptions::new().read(true).write(true).create(true).open(file_name)?;
@@ -58,7 +56,7 @@ pub fn set_version(new_raw: String) -> Result<(), Error> {
 }
 
 
-pub fn dir_exists(path: &str) -> Result<(), Error> {
+pub fn dir_exists(path: &str) -> Result<(), std::io::Error> {
     if Path::is_dir(Path::new(path)) {
         return Ok(());
     }
@@ -66,7 +64,7 @@ pub fn dir_exists(path: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn file_exists(path: &str, default_raw: String) -> Result<(), Error> {
+pub fn file_exists(path: &str, default_raw: String) -> Result<(), std::io::Error> {
     if Path::is_file(Path::new(path)) {
         return Ok(());
     }
