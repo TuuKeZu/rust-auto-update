@@ -21,7 +21,7 @@ const BINARY_NAME: &str = env!("CARGO_PKG_NAME");
 /// #[tokio::main]
 /// async fn main() -> Result<(), Error> {
 ///     UpdateBuilder::new()
-///         .set_verbal(true)
+///         .set_verbose(true)
 ///         .set_github_user("TuuKeZu")
 ///         .set_github_repo("rust-auto-update")
 ///         .set_binary_path(OsType::Windows, "x86_64-pc-windows-gnu.zip")
@@ -33,8 +33,9 @@ const BINARY_NAME: &str = env!("CARGO_PKG_NAME");
 /// }
 /// ```
 
+#[derive(Debug, Default)]
 pub struct UpdateBuilder {
-    verbal: bool,
+    verbose: bool,
     github_user: Option<String>,
     github_repo: Option<String>,
     binary_map: HashMap<OsType, String>,
@@ -44,7 +45,7 @@ impl UpdateBuilder {
     /// Creates a new `UpdateBuilder`
     pub fn new() -> Self {
         Self {
-            verbal: true,
+            verbose: true,
             github_user: None,
             github_repo: None,
             binary_map: HashMap::new(),
@@ -52,8 +53,8 @@ impl UpdateBuilder {
     }
 
     /// Set to `true` by default. Controls weather to show output or not
-    pub fn set_verbal(mut self, value: bool) -> Self {
-        self.verbal = value;
+    pub fn set_verbose(mut self, value: bool) -> Self {
+        self.verbose = value;
         self
     }
 
@@ -78,8 +79,8 @@ impl UpdateBuilder {
 
     /// Check and install the latest update for the current operating system.
     pub async fn check_for_updates(mut self) -> Result<()> {
-        assert!(self.github_user != None, "GitHub user must be specified");
-        assert!(self.github_repo != None, "GitHub repo must be specified");
+        assert!(self.github_user.is_some(), "GitHub user must be specified");
+        assert!(self.github_repo.is_some(), "GitHub repo must be specified");
 
         println!("Checking for updates:");
         let version = get_version()?;
@@ -126,9 +127,9 @@ impl UpdateBuilder {
         let os = get_os();
         let os_path = self.binary_map.get(&os);
 
-        if os_path == None {
+        if os_path.is_none() {
             return Err(
-                UpdateError(format!("No binary was found for this operating system")).into(),
+                UpdateError("No binary was found for this operating system".to_string()).into(),
             );
         }
 
@@ -142,7 +143,7 @@ impl UpdateBuilder {
             os_path.unwrap()
         );
 
-        self.download_binary(&url).await?;
+        self.download_binary(os, &url).await?;
         set_version(
             Data {
                 version: Version {
@@ -156,22 +157,25 @@ impl UpdateBuilder {
         Ok(())
     }
 
-    async fn download_binary(&mut self, url: &str) -> Result<()> {
+    async fn download_binary(&mut self, os: OsType, url: &str) -> Result<()> {
         println!("> Installing {}", url);
         dir_exists("version-tmp")?;
         dir_exists("version-cache")?;
 
         let tmp_exec_name = format!("version-tmp/{BINARY_NAME}.zip");
-        let exec_name = format!("tmp-{BINARY_NAME}.exe");
+        let exec_name = format!("tmp-{BINARY_NAME}");
 
         println!("> downloading latest binary...");
         let response = reqwest::get(url).await?;
 
         if response.status() != 200 {
-            return Err(UpdateError(format!("Failed to access installation binary <{url}>")).into());
+            return Err(
+                UpdateError(format!("Failed to access installation binary <{url}>")).into(),
+            );
         }
 
         let mut file = std::fs::File::create(tmp_exec_name.clone())?;
+
         let mut content = Cursor::new(response.bytes().await?);
         std::io::copy(&mut content, &mut file)?;
 
@@ -180,7 +184,24 @@ impl UpdateBuilder {
         let mut archive = ZipArchive::new(archive)?;
 
         let mut executable = archive.by_index(0)?;
-        let mut file = std::fs::File::create(exec_name.clone())?;
+
+        let mut file = match os {
+            OsType::Windows => {
+                // On windows the executable needs to have a file type
+                let exec_name = format!("{}.exe", exec_name.clone());
+                std::fs::File::create(exec_name)?
+            }
+            OsType::Linux | OsType::MacOs => {
+                use std::os::unix::fs::PermissionsExt;
+                let file = std::fs::File::create(exec_name.clone())?;
+                // On Unix based systems the file must be set to an executable
+                file.set_permissions(fs::Permissions::from_mode(0o777))?;
+                file
+            }
+            OsType::Unsupported => {
+                return Err(UpdateError("Unsupported operating system".to_string()).into());
+            }
+        };
 
         std::io::copy(&mut executable, &mut file)?;
 
@@ -193,7 +214,7 @@ impl UpdateBuilder {
         fs::rename(exec_name.clone(), exec_dir.join(exec_name.clone()))?;
 
         // MOVE (current) executable => cache
-        fs::rename(exec_path, format!("version-cache/last.exe"))?;
+        fs::rename(exec_path, "version-cache/last.exe")?;
 
         // RENAME tmp-executable => executable
         fs::rename(exec_dir.join(exec_name), exec_path)?;
