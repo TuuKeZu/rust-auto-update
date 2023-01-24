@@ -4,9 +4,9 @@ use reqwest::header::USER_AGENT;
 use std::{
     collections::HashMap,
     env,
-    fmt::{self},
+    fmt::{self, format},
     fs::{self, File},
-    io::Cursor,
+    io::Cursor, path::Path,
 };
 use zip::ZipArchive;
 
@@ -173,8 +173,8 @@ impl UpdateBuilder {
         dir_exists("version-tmp")?;
         dir_exists("version-cache")?;
 
-        let tmp_exec_name = format!("version-tmp/{BINARY_NAME}.zip");
-        let exec_name = format!("tmp-{BINARY_NAME}");
+        let tmp_exec_name = format!("version-tmp/{}.zip", self.github_repo.as_ref().unwrap());
+        let exec_name = format!("tmp-{}", self.github_repo.as_ref().unwrap());
 
         println!("{}", "> Downloading latest binary...".dimmed());
         let response = reqwest::get(url).await?;
@@ -194,16 +194,24 @@ impl UpdateBuilder {
         let archive = File::open(tmp_exec_name)?;
         let mut archive = ZipArchive::new(archive)?;
 
+        
+        let executable = env::current_exe()?;
+        let exec_path = executable.as_path();
+        let exec_dir = exec_path.parent().unwrap();
+        
         let mut executable = archive.by_index(0)?;
 
         let mut file = match os {
             OsType::Windows => {
                 // On windows the executable needs to have a file type
-                let exec_name = format!("{}.exe", exec_name.clone());
-                std::fs::File::create(exec_name)?
+                let exec_path = exec_dir.join(format!("{}.exe", exec_name));
+                dbg!(&exec_path);
+                std::fs::File::create(exec_path)?
             }
             OsType::Linux | OsType::MacOs => {
-                let file = std::fs::File::create(exec_name.clone())?;
+                let exec_path = exec_dir.join(format!("{}", exec_name));
+
+                let file = std::fs::File::create(exec_path.clone())?;
                 // On Unix based systems the file must be set to an executable
                 cfg_if::cfg_if! {
                     if #[cfg(unix)] {
@@ -221,18 +229,19 @@ impl UpdateBuilder {
         std::io::copy(&mut executable, &mut file)?;
 
         println!("{}", "> Finalizing... ".dimmed());
-        let executable = env::current_exe()?;
-        let exec_path = executable.as_path();
-        let exec_dir = exec_path.parent().unwrap();
-
-        // MOVE tmp-executable => binary
-        fs::rename(exec_name.clone(), exec_dir.join(exec_name.clone()))?;
 
         // MOVE (current) executable => cache
-        fs::rename(exec_path, "version-cache/last.exe")?;
-
+        // Remove .exe extentsion from the file to prohibit curious Windows users accidentally clicking cached executables.
+        fs::rename(exec_path, "version-cache/last")?;
+        
         // RENAME tmp-executable => executable
-        fs::rename(exec_dir.join(exec_name), exec_path)?;
+        match os {
+            OsType::Windows => fs::rename(exec_dir.join(format!("{exec_name}.exe")), exec_path)?,
+            OsType::Linux | OsType::MacOs => fs::rename(exec_dir.join(exec_name), exec_path)?,
+            OsType::Unsupported => {
+                return Err(UpdateError("Unsupported operating system".to_string()).into());
+            }
+        }
 
         println!("{} {}", ">".dimmed(), "Done!".green());
         Ok(())
