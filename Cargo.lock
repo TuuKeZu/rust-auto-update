@@ -626,6 +626,7 @@ name = "rustdate"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cfg-if",
  "online",
  "reqwest",
  "serde",

@@ -192,10 +192,14 @@ impl UpdateBuilder {
                 std::fs::File::create(exec_name)?
             }
             OsType::Linux | OsType::MacOs => {
-                use std::os::unix::fs::PermissionsExt;
                 let file = std::fs::File::create(exec_name.clone())?;
                 // On Unix based systems the file must be set to an executable
-                file.set_permissions(fs::Permissions::from_mode(0o777))?;
+                cfg_if::cfg_if! {
+                    if #[cfg(unix)] {
+                        use std::os::unix::fs::PermissionsExt;
+                        file.set_permissions(fs::Permissions::from_mode(0o777))?;
+                    }
+                }
                 file
             }
             OsType::Unsupported => {
