@@ -1,4 +1,5 @@
 use anyhow::Result;
+use colored::*;
 use reqwest::header::USER_AGENT;
 use std::{
     collections::HashMap,
@@ -82,7 +83,7 @@ impl UpdateBuilder {
         assert!(self.github_user.is_some(), "GitHub user must be specified");
         assert!(self.github_repo.is_some(), "GitHub repo must be specified");
 
-        println!("Checking for updates:");
+        println!("{}", "Checking for updates:".dimmed());
         let version = get_version()?;
 
         // Check for network connection
@@ -114,14 +115,24 @@ impl UpdateBuilder {
         let version_label = &json["tag_name"].as_str().unwrap();
 
         if version.id as i64 == *id {
-            println!("> up to date");
+            println!("{} {}", "> Up to date".dimmed(), version_label.green());
             return Ok(());
         }
 
         if version.id == 0 {
-            println!("> Installing {}", version_label);
+            println!(
+                "{} {}",
+                "> Running initial setup".dimmed(),
+                version_label.green()
+            );
         } else {
-            println!("> Update available: {} => {}", version.label, version_label);
+            println!(
+                "{} {} {} {}",
+                "> Update available:".dimmed(),
+                version.label.yellow(),
+                "=>".dimmed(),
+                version_label.green()
+            );
         }
 
         let os = get_os();
@@ -158,14 +169,14 @@ impl UpdateBuilder {
     }
 
     async fn download_binary(&mut self, os: OsType, url: &str) -> Result<()> {
-        println!("> Installing {}", url);
+        println!("{} {}", "> Installing".dimmed(), url.italic().white());
         dir_exists("version-tmp")?;
         dir_exists("version-cache")?;
 
         let tmp_exec_name = format!("version-tmp/{BINARY_NAME}.zip");
         let exec_name = format!("tmp-{BINARY_NAME}");
 
-        println!("> downloading latest binary...");
+        println!("{}", "> Downloading latest binary...".dimmed());
         let response = reqwest::get(url).await?;
 
         if response.status() != 200 {
@@ -179,7 +190,7 @@ impl UpdateBuilder {
         let mut content = Cursor::new(response.bytes().await?);
         std::io::copy(&mut content, &mut file)?;
 
-        println!("> unzipping archived packages...");
+        println!("{}", "> Unzipping archived packages...".dimmed());
         let archive = File::open(tmp_exec_name)?;
         let mut archive = ZipArchive::new(archive)?;
 
@@ -209,7 +220,7 @@ impl UpdateBuilder {
 
         std::io::copy(&mut executable, &mut file)?;
 
-        println!("> finalizing... ");
+        println!("{}", "> Finalizing... ".dimmed());
         let executable = env::current_exe()?;
         let exec_path = executable.as_path();
         let exec_dir = exec_path.parent().unwrap();
@@ -223,7 +234,7 @@ impl UpdateBuilder {
         // RENAME tmp-executable => executable
         fs::rename(exec_dir.join(exec_name), exec_path)?;
 
-        println!("> done!");
+        println!("{} {}", ">".dimmed(), "Done!".green());
         Ok(())
     }
 }

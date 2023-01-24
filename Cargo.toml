@@ -19,3 +19,4 @@ zip = "0.6.3"
 online = { version = "4.0.0", features = ["tokio"] }
 anyhow = "1.0.68"
 cfg-if = "1.0.0"
+colored = "2.0.0"
