@@ -205,7 +205,6 @@ impl UpdateBuilder {
             OsType::Windows => {
                 // On windows the executable needs to have a file type
                 let exec_path = exec_dir.join(format!("{}.exe", exec_name));
-                dbg!(&exec_path);
                 std::fs::File::create(exec_path)?
             }
             OsType::Linux | OsType::MacOs => {
